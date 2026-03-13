@@ -1,26 +1,56 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const { z } = require("zod");
 const { JWT_ADMIN_PASSWORD } = require("../config");
 const AdminRouter = express.Router();
 const { AdminModel, CourseModel } = require("../db");
 const { adminMiddleware } = require("../middlewares/admin");
 
 AdminRouter.post("/signup", async function (req, res) {
-  const { email, firstName, lastName, password } = req.body;
-
-  const hashedPassword = await bcrypt.hash(password, 10);
-
-  await AdminModel.create({
-    email: email,
-    firstName: firstName,
-    lastName: lastName,
-    password: hashedPassword,
+  const schema = z.object({
+    email: z.string().email(),
+    firstName: z.string().min(2),
+    lastName: z.string().min(2),
+    password: z.string().min(6),
   });
 
-  res.json({
-    message: "Admin signed up successfully",
-  });
+  const parsed = schema.safeParse(req.body);
+
+  if (!parsed.success) {
+    return res.status(400).json({
+      message: "Invalid input",
+    });
+  }
+
+  const { email, firstName, lastName, password } = parsed.data;
+
+  try {
+    const existingAdmin = await AdminModel.findOne({ email });
+
+    if (existingAdmin) {
+      return res.status(409).json({
+        message: "Admin already exists!",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await AdminModel.create({
+      email: email,
+      firstName: firstName,
+      lastName: lastName,
+      password: hashedPassword,
+    });
+
+    res.status(201).json({
+      message: "Admin signed up successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Internal server error",
+    });
+  }
 });
 
 AdminRouter.post("/signin", async function (req, res) {
