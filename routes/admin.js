@@ -105,22 +105,41 @@ AdminRouter.post("/signin", async function (req, res) {
 });
 
 AdminRouter.post("/course", adminMiddleware, async function (req, res) {
-  const adminId = req.userId;
-
-  const { title, description, imageURL, price } = req.body;
-
-  const course = await CourseModel.create({
-    title,
-    description,
-    imageURL,
-    price,
-    creatorId: adminId,
+  const schema = z.object({
+    title: z.string().min(3),
+    description: z.string().min(10),
+    imageURL: z.string().url(),
+    price: z.number().positive(),
   });
 
-  res.json({
-    message: "Course Created",
-    courseId: course._id,
-  });
+  const parsed = schema.safeParse(req.body);
+
+  if (!parsed.success) {
+    return res.status(400).json({
+      message: "Invalid input",
+    });
+  }
+
+  try {
+    const adminId = req.userId;
+
+    const course = await CourseModel.create({
+      title,
+      description,
+      imageURL,
+      price,
+      creatorId: adminId,
+    });
+
+    res.status(201).json({
+      message: "Course created successfully",
+      courseId: course._id,
+    });
+  } catch (err) {
+    res.status(500).json({
+      message: "Internal server error",
+    });
+  }
 });
 
 AdminRouter.put("/course", adminMiddleware, async function (req, res) {
