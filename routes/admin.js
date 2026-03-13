@@ -6,6 +6,7 @@ const { JWT_ADMIN_PASSWORD } = require("../config");
 const AdminRouter = express.Router();
 const { AdminModel, CourseModel } = require("../db");
 const { adminMiddleware } = require("../middlewares/admin");
+const { id } = require("zod/locales");
 
 AdminRouter.post("/signup", async function (req, res) {
   const schema = z.object({
@@ -54,35 +55,53 @@ AdminRouter.post("/signup", async function (req, res) {
 });
 
 AdminRouter.post("/signin", async function (req, res) {
-  const { email, password } = req.body;
-  const admin = await AdminModel.findOne({
-    email: email,
+  const schema = z.object({
+    email: z.string().email(),
+    password: z.string().min(6),
   });
 
-  if (!admin) {
-    return res.status(403).json({
-      message: "invalid email or password",
+  const parsed = schema.safeParse(req.body);
+
+  if (!parsed.success) {
+    return res.status(400).json({
+      message: "Invalid input",
     });
   }
 
-  const passwordMatch = await bcrypt.compare(password, admin.password);
+  try {
+    const admin = await AdminModel.findOne({ email });
 
-  if (!passwordMatch) {
-    return res.json({
-      message: "invalid email or password",
+    if (!admin) {
+      return res.status(403).json({
+        message: "Invalid email or password",
+      });
+    }
+
+    const passwordMatch = await bcrypt.compare(password, admin.password);
+
+    if (!passwordMatch) {
+      return res.status(403).json({
+        message: "invalid email or password",
+      });
+    }
+
+    const token = jwt.sign(
+      {
+        id: admin._id,
+      },
+      JWT_ADMIN_PASSWORD,
+      { expiresIn: "7d" },
+    );
+
+    res.status(200).json({
+      message: "Sign in successfull",
+      token: token,
+    });
+  } catch (err) {
+    res.status(500).json({
+      message: "Internal server error",
     });
   }
-
-  const token = jwt.sign(
-    {
-      id: admin._id,
-    },
-    JWT_ADMIN_PASSWORD,
-  );
-
-  res.json({
-    token: token,
-  });
 });
 
 AdminRouter.post("/course", adminMiddleware, async function (req, res) {
