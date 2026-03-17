@@ -112,20 +112,35 @@ UserRouter.post("/signin", async function (req, res) {
 });
 
 UserRouter.get("/purchases", userMiddleware, async function (req, res) {
-  const userId = req.body.userId;
+  try {
+    const userId = req.userId;
 
-  const purchases = await PurchaseModel.find({
-    userId,
-  });
+    const purchases = await PurchaseModel.find({ userId });
 
-  const courseData = await CourseModel.find({
-    _id: { $in: purchases.map((x) => x.courseId) },
-  });
+    if (purchases.length === 0) {
+      return res.json({
+        message: "No purchases found",
+        courses: [],
+      });
+    }
 
-  res.json({
-    purchases,
-    courseData,
-  });
+    const courseIds = purchases.map((p) => p.courseId);
+
+    const courses = await CourseModel.find({
+      _id: { $in: courseIds },
+    }).select("title description price imageURL");
+
+    res.json({
+      message: "Purchased courses fetched",
+      count: courses.length,
+      courses,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
 });
 
 module.exports = {
