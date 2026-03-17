@@ -217,6 +217,38 @@ AdminRouter.get("/course/bulk", adminMiddleware, async function (req, res) {
   }
 });
 
+AdminRouter.delete(
+  "/course/:courseId",
+  adminMiddleware,
+  async function (req, res) {
+    try {
+      const adminId = req.userId;
+      const { courseId } = req.params;
+
+      const deletedCourse = await CourseModel.findOneAndDelete({
+        _id: courseId,
+        creatorId: adminId,
+      });
+
+      if (!deletedCourse) {
+        return res.status(404).json({
+          message: "Course not found or unauthorised",
+        });
+      }
+
+      res.json({
+        message: "Course deleted successfully",
+        course: deletedCourse,
+      });
+    } catch (err) {
+      console.log(err);
+      res.status(500).json({
+        message: "Internal server error",
+      });
+    }
+  },
+);
+
 module.exports = {
   AdminRouter,
 };
