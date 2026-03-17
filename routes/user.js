@@ -55,38 +55,60 @@ UserRouter.post("/signup", async function (req, res) {
   }
 });
 
+const signinSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6),
+});
+
 UserRouter.post("/signin", async function (req, res) {
-  const { email, password } = req.body;
-  const user = await UserModel.findOne({
-    email: email,
-  });
+  try {
+    const parsedData = signinSchema.safeParse(req.body);
 
-  if (!user) {
-    return res.status(403).json({
-      message: "invalid email or password",
+    if (!parsedData.success) {
+      return res.status(400).json({
+        message: "Invalid input",
+        errors: parsedData.error.errors,
+      });
+    }
+
+    let { email, password } = parsedData.data;
+
+    email = email.toLowerCase().trim();
+
+    const user = await UserModel.findOne({ email });
+
+    if (!user) {
+      return res.status(403).json({
+        message: "Invalid email or password",
+      });
+    }
+
+    const passwordMatch = await bcrypt.compare(password, user.password);
+
+    if (!passwordMatch) {
+      return res.status(403).json({
+        message: "Invalid email or password",
+      });
+    }
+
+    const token = jwt.sign(
+      {
+        userId: user._id,
+      },
+      JWT_USER_PASSWORD,
+      { expiresIn: "7d" },
+    );
+
+    res.json({
+      message: "Signin successful",
+      token,
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({
+      message: "Internal Server Error",
     });
   }
-
-  const passwordMatch = await bcrypt.compare(password, user.password);
-
-  if (!passwordMatch) {
-    return res.status(403).json({
-      message: "invalid email or password",
-    });
-  }
-
-  const token = jwt.sign(
-    {
-      id: user._id,
-    },
-    JWT_USER_PASSWORD,
-  );
-
-  // COOKIES OR SESSION LOGIC RESIDES HERE TOO
-
-  res.json({
-    token: token,
-  });
 });
 
 UserRouter.get("/purchases", userMiddleware, async function (req, res) {
