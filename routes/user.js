@@ -1,26 +1,58 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const { z, email } = require("zod");
 const { JWT_USER_PASSWORD } = require("../config");
 const UserRouter = express.Router();
 const { UserModel, PurchaseModel, CourseModel } = require("../db");
 const { userMiddleware } = require("../middlewares/user");
 
+const signupSchema = z.object({
+  email: z.string().email(),
+  firstName: z.string().min(2),
+  lastName: z.string().min(2),
+  password: z.string().min(6),
+});
+
 UserRouter.post("/signup", async function (req, res) {
-  const { email, firstName, lastName, password } = req.body;
+  try {
+    const parsedData = signupSchema.safeParse(req.body);
 
-  const hashedPassword = await bcrypt.hash(password, 10);
+    if (!parsedData) {
+      return res.status(400).json({
+        message: "Invalid input",
+        errors: parsedData.error.errors,
+      });
+    }
 
-  await UserModel.create({
-    email: email,
-    firstName: firstName,
-    lastName: lastName,
-    password: hashedPassword,
-  });
+    let { email, firstName, lastName, password } = parsedData.data;
 
-  res.json({
-    message: "signed up successfully",
-  });
+    email = email.toLowerCase().trim();
+
+    const existingUser = await UserModel.findOne({ email });
+    if (existingUser) {
+      return res.status(409).json({
+        message: "User already exists",
+      });
+    }
+
+    const hashedPassword = await UserModel.create({
+      email,
+      firstName,
+      lastName,
+      password: hashedPassword,
+    });
+
+    res.status(201).json({
+      message: "Signed up succcessfully",
+      userId: user._id,
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
 });
 
 UserRouter.post("/signin", async function (req, res) {
