@@ -188,16 +188,33 @@ AdminRouter.put("/course", adminMiddleware, async function (req, res) {
 });
 
 AdminRouter.get("/course/bulk", adminMiddleware, async function (req, res) {
-  const adminId = req.userId;
+  try {
+    const adminId = req.userId;
 
-  const courses = await CourseModel.find({
-    creatorId: adminId,
-  });
+    const courses = await CourseModel.find({
+      creatorId: adminId,
+    })
+      .sort({ createdAt: -1 }) // latest first
+      .select("title description price imageURL createdAt"); // only needed fields
 
-  res.json({
-    message: "Your Courses",
-    courses,
-  });
+    if (courses.length === 0) {
+      return res.json({
+        message: "No courses found",
+        courses: [],
+      });
+    }
+
+    res.json({
+      message: "Your Courses",
+      count: courses.length,
+      courses,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      message: "Internal Server Error",
+    });
+  }
 });
 
 module.exports = {
