@@ -1,7 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const { z, email } = require("zod");
+const { z } = require("zod");
 const { JWT_USER_PASSWORD } = require("../config");
 const UserRouter = express.Router();
 const { UserModel, PurchaseModel, CourseModel } = require("../db");
