@@ -18,7 +18,7 @@ UserRouter.post("/signup", async function (req, res) {
   try {
     const parsedData = signupSchema.safeParse(req.body);
 
-    if (!parsedData) {
+    if (!parsedData.success) {
       return res.status(400).json({
         message: "Invalid input",
         errors: parsedData.error.errors,
