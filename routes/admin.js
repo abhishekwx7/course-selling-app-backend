@@ -143,24 +143,48 @@ AdminRouter.post("/course", adminMiddleware, async function (req, res) {
 });
 
 AdminRouter.put("/course", adminMiddleware, async function (req, res) {
-  const adminId = req.userId;
+  try {
+    const adminId = req.userId;
+    const { title, description, imageURL, price, courseId } = req.body;
 
-  const { title, description, imageURL, price, courseId } = req.body;
+    if (!courseId) {
+      return res.status(400).json({
+        message: "Course ID is required",
+      });
+    }
 
-  const course = await CourseModel.updateOne(
-    { _id: courseId, creatorId: adminId },
-    {
-      title,
-      description,
-      imageURL,
-      price,
-    },
-  );
+    // Build update object dynamically (avoid undefined overwrite)
+    const updateData = {};
+    if (title !== undefined) updateData.title = title;
+    if (description !== undefined) updateData.description = description;
+    if (imageURL !== undefined) updateData.imageURL = imageURL;
+    if (price !== undefined) updateData.price = price;
 
-  res.json({
-    message: "Course Updated",
-    courseId: course._id,
-  });
+    const updatedCourse = await CourseModel.findOneAndUpdate(
+      {
+        _id: courseId,
+        creatorId: adminId,
+      },
+      { $set: updateData },
+      { new: true },
+    );
+
+    if (!updatedCourse) {
+      return res.status(404).json({
+        message: "Course not found or unauthorized",
+      });
+    }
+
+    res.json({
+      message: "Course Updated",
+      course: updatedCourse,
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({
+      message: "Internal server error",
+    });
+  }
 });
 
 AdminRouter.get("/course/bulk", adminMiddleware, async function (req, res) {
