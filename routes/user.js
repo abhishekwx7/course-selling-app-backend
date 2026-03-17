@@ -143,6 +143,29 @@ UserRouter.get("/purchases", userMiddleware, async function (req, res) {
   }
 });
 
+UserRouter.delete("/", userMiddleware, async function (req, res) {
+  try {
+    const userId = req.userId;
+
+    const deletedUser = await UserModel.findByIdAndDelete(userId);
+
+    if (!deletedUser) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    res.json({
+      message: "User account deleted successfully",
+    });
+  } catch (err) {
+    console.log(err);
+    res.json({
+      message: "Internal Server Error",
+    });
+  }
+});
+
 module.exports = {
   UserRouter,
 };
